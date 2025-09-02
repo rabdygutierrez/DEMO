@@ -1,0 +1,34 @@
+{
+  "name": "claro-insurance",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test-dev": "cross-env NODE_ENV=develop npx playwright test",
+    "test-qa": "cross-env NODE_ENV=qa npx playwright test",
+    "test-dev-visual": "cross-env NODE_ENV=develop npx playwright test --headed",
+    "test-qa-visual": "cross-env NODE_ENV=qa npx playwright test --headed",
+    "test-dev-ui": "cross-env NODE_ENV=develop npx playwright test --ui",
+    "test-qa-ui": "cross-env NODE_ENV=qa npx playwright test --ui",
+    "smoke-test-dev": "cross-env NODE_ENV=develop npx playwright test --grep '@smoke'",
+    "smoke-test-qa": "cross-env NODE_ENV=qa npx playwright test --grep '@smoke'",
+    "regression-test-dev": "cross-env NODE_ENV=develop npx playwright test --grep '@regression'",
+    "regression-test-qa": "cross-env NODE_ENV=qa npx playwright test --grep '@regression'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "url"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.0.3",
+    "zod": "^3.21.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.1",
+    "@types/node": "^22.5.5",
+    "cross-env": "^7.0.3"
+  }
+}

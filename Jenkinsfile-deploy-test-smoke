@@ -1,0 +1,29 @@
+pipeline {
+    agent {
+        label 'Jenkins_server'
+    }
+    triggers {
+        cron('TZ=America/Bogota\nH 4 * * *')
+    }
+    options {
+        skipDefaultCheckout true
+    }
+    stages {
+        stage ('Start server') {
+            steps {
+                script {
+                    build job: 'Start QA node', wait: true
+                }
+            }
+        }
+    }
+    post {
+        success {
+            script {
+                node ('QA_server') {
+                    build job: 'Test smoke', wait: false
+                }
+            }
+        }
+    }
+}

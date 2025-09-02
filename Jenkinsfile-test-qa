@@ -1,0 +1,91 @@
+pipeline {
+    agent {
+        label 'Jenkins_server'
+    }
+    environment {
+        playwright_pipeline = 'playwright-tests-qa'
+        test_case = 'NODE_ENV=qa npx playwright test --grep "@testQA"'
+        BUILD_NUMBER = "${env.BUILD_NUMBER}"
+        DOCKER_KEY = credentials('DOCKER_KEY')
+        PLAYWRIGHT_REPORT = credentials('PLAYWRIGHT_REPORT')
+        SEND_TO = credentials('SEND_TO')
+        JENKINS_URL_NAME = credentials('QA_NODE_RELAUNCH_NAME')
+        SCRIPTS_PATH = credentials('PATH_RELAUNCH_AGENT')
+        USER_CREDS = credentials('RCH_JENKINS_TOKEN')
+    }
+    options {
+        skipDefaultCheckout true
+    }
+    stages {
+        stage('Start server') {
+            steps {
+                script {
+                    withCredentials([
+                        string(credentialsId: 'START_QA_SERVER', variable: 'LAMBDA_NAME'),
+                        string(credentialsId: 'LAMBDA_REGION', variable: 'LAMBDA_REGION'),
+                        string(credentialsId: 'LAMBDA_ACCESS_KEY_ID', variable: 'ACCESS_KEY_ID'),
+                        string(credentialsId: 'LAMBDA_SECRET_ACCESS_KEY', variable: 'SECRET_ACCESS_KEY')
+                    ]) {
+                        try {
+                            invokeLambda (
+                                functionName: env.LAMBDA_NAME,
+                                awsRegion: env.LAMBDA_REGION,
+                                awsAccessKeyId: env.ACCESS_KEY_ID,
+                                awsSecretKey: env.SECRET_ACCESS_KEY,
+                                synchronous : true
+                            )
+                        } catch (Exception e) {
+                            echo "Error al invocar la función ${e.message}"
+                            currentBuild.result = 'FAILURE'
+                            error "Fallo al invocal la función"
+                        }
+                    }
+                }
+            }
+        }
+        stage ('Relaunch node') {
+            steps {
+                sh 'sudo chmod -R +x ${SCRIPTS_PATH}'
+                sh 'sudo ${SCRIPTS_PATH}/relaunch_agent.sh ${JENKINS_URL_NAME_USR} "${JENKINS_URL_NAME_PSW}" ${USER_CREDS_USR} ${USER_CREDS_PSW} ${SCRIPTS_PATH}'
+            }
+        }
+        stage ('Deploy tests') {
+            agent {
+                label 'QA_server'
+            }
+            stages {
+                stage('Build') {
+                    environment {
+                        QA_URL = credentials('QA_URL')
+                        QA_USER = credentials('QA_USER')
+                        DEVELOP_URL = credentials('DEVELOP_URL')
+                        DEVELOP_USER = credentials('DEVELOP_USER')
+                        QAN_URL = credentials('QAN_URL')
+                        QAN_USER = credentials('QAN_USER')
+                    }
+                    steps {
+                        checkout scm
+                        sh 'chmod -R +x ./jenkins'
+                        sh './jenkins/build.sh ${playwright_pipeline} ${BUILD_NUMBER}'
+                    }
+                }
+                stage ('Run tests') {
+                    steps {
+                        sh './jenkins/run_test.sh ${playwright_pipeline} "${test_case}" ${BUILD_NUMBER}'
+                    }
+                }
+            }
+            post {
+                always {
+                    sh './jenkins/post_actions.sh ${playwright_pipeline} ${BUILD_NUMBER}'
+                    cleanWs()
+                }
+            }
+        }
+    }
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
